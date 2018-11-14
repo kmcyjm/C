@@ -1,7 +1,7 @@
-a.out
 
 Compiled using gcc version 7.3.0 (Ubuntu 7.3.0-27ubuntu1~18.04) with debug information.
 
-$ gcc -g *.c
+$ gcc -m32 -g *.c -o a32.out
+$ gcc -g *.c -o a64.out
 
 
