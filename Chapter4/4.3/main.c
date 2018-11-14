@@ -9,7 +9,7 @@ int main()
 {
     int type;
     double op2;
-    char s[MAXOP];      /* s[] stores digits from getch() and construct a number, later be stored in val[] later */
+    char s[MAXOP];      /* s[] stores digits from getch() and construct a number, later be stored in val[] */
 
     while((type = getop(s)) != EOF) {
         switch (type) {
