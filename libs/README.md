@@ -17,109 +17,79 @@ all. That is, it is as if no **wait()** is there.
 Consider the following program. Click [**here**](fork-03.c) to download a copy of this file **fork-03.c**.
 
 ```c
-#include  <stdio.h>
-#include  <string.h>
-#include  <sys/types.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <wait.h>
 
-#define   MAX\_COUNT  200
-#define   BUF\_SIZE   100
+#define   MAX_COUNT  200
+#define   BUF_SIZE   100
 
-void  ChildProcess(char \[\], char \[\]);    /\* child process prototype  \*/
+void  ChildProcess(char [], char []);    /*  child process prototype  */
 
-void  main(void)
+int main(void)
 {
-  pid\_t   pid1, pid2, pid;
+  pid_t   pid1, pid2, pid;
   int     status;
-  int     i;
-  char    buf\[BUF\_SIZE\];
+  char    buf[BUF_SIZE];
 
-  printf("\*\*\* Parent is about to fork process 1 \*\*\*\\n");
+  printf("*** Parent is about to fork process 1 ***\n");
+  // fork() returns value < 0 when failed
   if ((pid1 = fork()) < 0) {
-    printf("Failed to fork process 1\\n");
+    printf("Failed to fork process 1\n");
     exit(1);
   }
-  else if (pid1 == 0) 
+  // fork() returns 0 to child process when successful
+  else if (pid1 == 0)
     ChildProcess("First", "   ");
 
-  printf("\*\*\* Parent is about to fork
-      process 2 \*\*\*\\n");
+  printf("*** Parent is about to fork process 2 ***\n");
   if ((pid2 = fork()) < 0) {
-    printf("Failed to fork
-        process 2\\n");
+    printf("Failed to fork process 2\n");
     exit(1);
   }
-  else
-    if
-      (pid2
-       ==
-       0) 
-        ChildProcess("Second",
-            "
-            ");
+  else if (pid2 == 0)
+    ChildProcess("Second", "      ");
 
-  sprintf(buf,
-      "\*\*\*
-      Parent
-      enters
-      waiting
-      status
-      .....\\n");
-  write(1,
-      buf,
-      strlen(buf));
-  pid
-    =
-    wait(&status);
-  sprintf(buf,
-      "\*\*\*
-      Parent
-      detects
-      process
-      %d
-      was
-      done
-      \*\*\*\\n",
-      pid);
-  write(1,
-      buf,
-      strlen(buf));
-  pid
-    =
-    wait(&status);
-  printf("\*\*\*
-      Parent
-      detects
-      process
-      %d
-      is
-      done
-      \*\*\*\\n",
-      pid);
-  printf("\*\*\*
-      Parent
-      exits
-      \*\*\*\\n");
+  sprintf(buf, "*** Parent enters waiting status .....\n");
+  // printf() is buffered, so using write()
+  // or use fflush() is fine too?
+  write(1, buf, strlen(buf));
+  // only parent can reach to this point
+  // wait() will suspend parent until one of its children exits
+  // when this happens, wait() will receive wstatus information from child
+  // wait() itself will return the child's pid when it returns.
+  pid = wait(&status);
+  sprintf(buf, "*** Parent detects process %d was done ***\n", pid);
+  write(1, buf, strlen(buf));
+  // here we have another wait() awaiting another child process to quit
+  pid = wait(&status);
+  printf("*** Parent detects process %d is done ***\n", pid);
+  printf("*** Parent exits ***\n");
   exit(0);
 }
 
-void  ChildProcess(char \*number, char \*space)
+void  ChildProcess(char *number, char *space)
 {
-  pid\_t  pid;
+  pid_t  pid;
   int    i;
-  char   buf\[BUF\_SIZE\];
+  char   buf[BUF_SIZE];
 
+  // child process gets its process id
   pid = getpid();
-  sprintf(buf, "%s%s child process starts (pid = %d)\\n", 
+  sprintf(buf, "%s%s child process starts (pid = %d)\n",
       space, number, pid);
   write(1, buf, strlen(buf));
-  for (i = 1; i <= MAX\_COUNT; i++) {
-    sprintf(buf, "%s%s child's output, value = %d\\n", space, number, i); 
+  // child prints out number from 1 - 200, pretending it is doing some real work
+  for (i = 1; i <= MAX_COUNT; i++) {
+    sprintf(buf, "%s%s child's output, value = %d\n", space, number, i);
     write(1, buf, strlen(buf));
   }
-  sprintf(buf, "%s%s child (pid = %d) is about to
-      exit\\n", 
+  sprintf(buf, "%s%s child (pid = %d) is about to exit\n",
       space, number, pid);
-  write(1, buf, strlen(buf));     
+  write(1, buf, strlen(buf));
   exit(0);
 }
 ```
@@ -134,178 +104,105 @@ returned information in variable **status**.
 However, the parent does not have to wait immediately after creating all child processes. It may do some other tasks.
 The following is an example. Click [**here**](fork-04.c) for this file **fork-04.c**.
 ```c
-#include  <stdio.h>
-#include  <string.h>
-#include  <sys/types.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <wait.h>
 
-#define   MAX\_COUNT  200
-#define   BUF\_SIZE   100
+#define   MAX_COUNT  200
+#define   BUF_SIZE   100
 
-void  ChildProcess(char \[\], char \[\]);    /\* child process prototype  \*/
-void  ParentProcess(void);               /\* parent process prototype \*/
+void  ChildProcess(char [], char []);    /*  child process prototype  */
 
-void  main(void)
+int main(void)
 {
-  pid\_t   pid1, pid2, pid;
+  pid_t   pid1, pid2, pid;
   int     status;
-  int     i;
-  char    buf\[BUF\_SIZE\];
+  char    buf[BUF_SIZE];
 
-  printf("\*\*\* Parent is about to fork process 1 \*\*\*\\n");
+  printf("*** Parent is about to fork process 1 ***\n");
+  // fork() returns value < 0 when failed
   if ((pid1 = fork()) < 0) {
-    printf("Failed to fork process 1\\n");
+    printf("Failed to fork process 1\n");
     exit(1);
   }
-  else if (pid1 == 0) 
+  // fork() returns 0 to child process when successful
+  else if (pid1 == 0)
     ChildProcess("First", "   ");
 
-  printf("\*\*\* Parent is about to fork
-      process 2 \*\*\*\\n");
+  printf("*** Parent is about to fork process 2 ***\n");
   if ((pid2 = fork()) < 0) {
-    printf("Failed to fork
-        process 2\\n");
+    printf("Failed to fork process 2\n");
     exit(1);
   }
-  else
-    if
-      (pid2
-       ==
-       0) 
-        ChildProcess("Second",
-            "
-            ");
+  else if (pid2 == 0)
+    ChildProcess("Second", "      ");
 
-  ParentProcess();
-  sprintf(buf,
-      "\*\*\*
-      Parent
-      enters
-      waiting
-      status
-      .....\\n");
-  write(1,
-      buf,
-      strlen(buf));
-  pid
-    =
-    wait(&status);
-  sprintf(buf,
-      "\*\*\*
-      Parent
-      detects
-      process
-      %d
-      was
-      done
-      \*\*\*\\n",
-      pid);
-  write(1,
-      buf,
-      strlen(buf));
-  pid
-    =
-    wait(&status);
-  printf("\*\*\*
-      Parent
-      detects
-      process
-      %d
-      is
-      done
-      \*\*\*\\n",
-      pid);
-  printf("\*\*\*
-      Parent
-      exits
-      \*\*\*\\n");
+  sprintf(buf, "*** Parent enters waiting status .....\n");
+  // printf() is buffered, so using write()
+  // or use fflush() is fine too?
+  write(1, buf, strlen(buf));
+  // only parent can reach to this point
+  // wait() will suspend parent until one of its children exits
+  // when this happens, wait() will receive wstatus information from child
+  // wait() itself will return the child's pid when it returns.
+  pid = wait(&status);
+  sprintf(buf, "*** Parent detects process %d was done ***\n", pid);
+  write(1, buf, strlen(buf));
+  // here we have another wait() awaiting another child process to quit
+  pid = wait(&status);
+  printf("*** Parent detects process %d is done ***\n", pid);
+  printf("*** Parent exits ***\n");
   exit(0);
 }
 
-#define  QUAD(x)  (x\*x\*x\*x)
+#define  QUAD(x)  (x*x*x*x)
 
-void  ParentProcess(void)
+void ParentProcess(void)
 {
   int  a, b, c, d;
   int  abcd, a4b4c4d4;
   int  count = 0;
-  char buf\[BUF\_SIZE\];
+  char buf[BUF_SIZE];
 
-  sprintf(buf, "Parent is about to compute the Armstrong numbers\\n");
+  sprintf(buf, "Parent is about to compute the Armstrong numbers\n");
   write(1, buf, strlen(buf));
   for (a = 0; a <= 9; a++)
     for (b = 0; b <= 9; b++)
       for (c = 0; c <= 9; c++)
         for (d = 0; d <= 9; d++) {
-          abcd
-            =
-            a\*1000
-            +
-            b\*100
-            +
-            c\*10
-            + d;
-          a4b4c4d4
-            =
-            QUAD(a)
-            +
-            QUAD(b)
-            +
-            QUAD(c)
-            +
-            QUAD(d);
-          if
-            (abcd
-             ==
-             a4b4c4d4)
-            {
-              sprintf(buf,
-                  "From
-                  parent:
-                  "
-                  "the
-                  %d
-                  Armstrong
-                  number
-                  is
-                  %d\\n",
-                  ++count,
-                  abcd);
-              write(1,
-                  buf,
-                  strlen(buf));
-            }
+          abcd     = a*1000 + b*100 + c*10 + d;
+          a4b4c4d4 = QUAD(a) + QUAD(b) + QUAD(c) + QUAD(d);
+          if (abcd == a4b4c4d4) {
+            sprintf(buf, "From parent: "
+                "the %d Armstrong number is %d\n",
+                ++count, abcd);
+            write(1, buf, strlen(buf));
+          }
         }
-  sprintf(buf,
-      "From
-      parent:
-      there
-      are
-      %d
-      Armstrong
-      numbers\\n",
-      count);
-  write(1,
-      buf,
-      strlen(buf));
+  sprintf(buf, "From parent: there are %d Armstrong numbers\n", count);
+  write(1, buf, strlen(buf));
 }
 
-void  ChildProcess(char \*number, char \*space)
+void ChildProcess(char *number, char *space)
 {
-  pid\_t  pid;
+  pid_t  pid;
   int    i;
-  char   buf\[BUF\_SIZE\];
+  char   buf[BUF_SIZE];
 
+  // child process gets its process id
   pid = getpid();
-  sprintf(buf, "%s%s child process starts (pid = %d)\\n", 
+  sprintf(buf, "%s%s child process starts (pid = %d)\n",
       space, number, pid);
   write(1, buf, strlen(buf));
-  for (i = 1; i <= MAX\_COUNT; i++) {
-    sprintf(buf, "%s%s child's output, value = %d\\n", 
-        space, number, i); 
+  // child prints out number from 1 - 200, pretending it is doing some real work
+  for (i = 1; i <= MAX_COUNT; i++) {
+    sprintf(buf, "%s%s child's output, value = %d\n", space, number, i);
     write(1, buf, strlen(buf));
   }
-  sprintf(buf, "%s%s child (pid = %d) is about to
-      exit\\n", 
+  sprintf(buf, "%s%s child (pid = %d) is about to exit\n",
       space, number, pid);
   write(1, buf, strlen(buf));
   exit(0);
@@ -327,14 +224,14 @@ happen, try to reduce the number of child processes, or re-organize your program
 If the returned pid is unimportant, we can treat function **wait()** as a procedure. The following code is a
 simple modification to the last few statements (in the main function) of the previous example.
 ```c
-sprintf(buf, "\*\*\* Parent enters waiting status .....\\n");
+sprintf(buf, "*** Parent enters waiting status .....\n");
 write(1, buf, strlen(buf));
 wait(&status);
-sprintf(buf, "\*\*\* Parent detects a child process was done \*\*\*\\n");
+sprintf(buf, "*** Parent detects a child process was done ***\n");
 write(1, buf, strlen(buf));
 wait(&status);
-printf("\*\*\* Parent detects another child process was done \*\*\*\\n");
-printf("\*\*\* Parent exits \*\*\*\\n");
+printf("*** Parent detects another child process was done ***\n");
+printf("*** Parent exits ***\n");
 ```
 
 Click [**here**](fork-05.c) to download a copy of this modified program (file **fork-05.c**).
